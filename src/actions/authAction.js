@@ -1,12 +1,45 @@
 import { types } from "../types";
+import { firebase, googleAuthProvider } from "../firebase/firebaseConfig";
+import { finishLoading, startLoading } from "./uiAction";
+import Swal from "sweetalert2";
 
 // Creamos la acción asíncrona
 export const startLoginEmailPassword = (email, password) => {
 	// Thunk nos ofrece el dispatch
-	return (dispatch) => {
-		setTimeout(() => {
-			dispatch(login('123', 'Pedro'));
-		}, 3500);
+	return dispatch => {
+		dispatch(startLoading());
+		
+		firebase.auth().signInWithEmailAndPassword(email, password)
+			.then(({ user }) => {
+				dispatch(login(user.uid, user.displayName));
+				dispatch(finishLoading());
+			})
+			.catch(e => {
+				dispatch(finishLoading());
+				Swal.fire('Error', e.message, 'error');
+			});
+	};
+};
+
+export const startGoogleLogin = () => {
+	return dispatch => {
+		firebase.auth().signInWithPopup(googleAuthProvider)
+			.then(({ user }) => {
+				dispatch(login(user.uid, user.displayName));
+			});
+	};
+};
+
+export const startRegisterWithEmailPasswordName = (name, email, password) => {
+	return dispatch => {
+		firebase.auth().createUserWithEmailAndPassword(email, password)
+			.then(async ({ user }) => {
+				await user.updateProfile({ displayName: 'Marco Arica' }); // Actualizamos el displayName del usuario en db
+				dispatch(login(user.uid, user.displayName));
+			})
+			.catch(e => {
+				Swal.fire('Error', e.message, 'error');
+			});
 	};
 };
 
@@ -17,3 +50,17 @@ export const login = (uid, displayName) => ({
 		displayName
 	}
 });
+
+export const startLogOut = () => {
+	return async dispatch => {
+		await firebase.auth().signOut();
+		
+		dispatch(logOut());
+	};
+};
+
+export const logOut = () => {
+	return {
+		type: types.logout
+	};
+};
